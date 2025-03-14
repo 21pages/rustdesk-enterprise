@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/widgets/animated_rotation_widget.dart';
 import 'package:flutter_hbb/common/widgets/custom_password.dart';
+import 'package:flutter_hbb/common/widgets/deploy_page.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/connection_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_setting_page.dart';
@@ -58,6 +59,21 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
+    if (bind.isHost()) {
+      return Obx(() {
+        if (gFFI.deployModel.isDeployed.isFalse) {
+          return DeployPage();
+        } else {
+          return _buildBody();
+        }
+      });
+    } else if (bind.isClient()) {
+    } else if (bind.isSos()) {}
+    return _buildBody();
+  }
+
+  Widget _buildBody() {
     final isIncomingOnly = bind.isIncomingOnly();
     return _buildBlock(
         child: Row(
