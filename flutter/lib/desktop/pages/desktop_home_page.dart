@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/widgets/animated_rotation_widget.dart';
 import 'package:flutter_hbb/common/widgets/custom_password.dart';
+import 'package:flutter_hbb/common/widgets/deploy_page.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/connection_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_setting_page.dart';
@@ -22,6 +23,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:window_size/window_size.dart' as window_size;
+import 'package:flutter_hbb/common/widgets/login.dart';
 
 import '../widgets/button.dart';
 
@@ -58,6 +60,22 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
+    if (bind.isHost()) {
+      return Obx(() {
+        if (gFFI.deployModel.isDeployed.isFalse &&
+            gFFI.deployModel.showDeployPage.value) {
+          return DeployPage();
+        } else {
+          return _buildBody();
+        }
+      });
+    } else if (bind.isClient()) {
+    } else if (bind.isSos()) {}
+    return _buildBody();
+  }
+
+  Widget _buildBody() {
     final isIncomingOnly = bind.isIncomingOnly();
     return _buildBlock(
         child: Row(
@@ -79,6 +97,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     final isIncomingOnly = bind.isIncomingOnly();
     final isOutgoingOnly = bind.isOutgoingOnly();
     final children = <Widget>[
+      if (bind.isClient() || bind.isFull()) buildAccount(),
+      if (bind.isHost()) buildDeployState(),
       if (!isOutgoingOnly) buildPresetPasswordWarning(),
       if (bind.isCustomClient())
         Align(
@@ -89,7 +109,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         alignment: Alignment.center,
         child: loadLogo(),
       ),
-      buildTip(context),
       if (!isOutgoingOnly) buildIDBoard(context),
       if (!isOutgoingOnly) buildPasswordBoard(context),
       FutureBuilder<Widget>(
@@ -417,12 +436,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
               overflow: TextOverflow.clip,
               style: Theme.of(context).textTheme.bodySmall,
             ),
-          if (isOutgoingOnly)
-            Text(
-              translate("outgoing_only_desk_tip"),
-              overflow: TextOverflow.clip,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
         ],
       ),
     );
@@ -677,6 +690,222 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           ),
       ],
     );
+  }
+
+  Widget buildDeployState() {
+    final model = gFFI.deployModel;
+    return Obx(() {
+      // Determine the appropriate icon and color based on status
+      IconData statusIcon;
+      Color statusColor;
+      Color? textColor;
+      String statusText;
+
+      if (model.checking.value) {
+        statusIcon = Icons.hourglass_empty;
+        statusColor = Colors.blue;
+        textColor = Colors.grey;
+        statusText = translate("Checking");
+      } else if (model.error.value.isNotEmpty) {
+        statusIcon = Icons.error_outline;
+        statusColor = Theme.of(context).colorScheme.error;
+        textColor = Theme.of(context).colorScheme.error;
+        statusText = translate("Error");
+      } else if (model.isDeployed.value && model.team.value.isNotEmpty) {
+        statusIcon = Icons.check_circle_outline;
+        statusColor = Colors.green;
+        textColor = null; // Use default/normal text color
+        statusText = "${translate("Team")} ${model.team.value}";
+      } else {
+        statusIcon = Icons.info_outline;
+        statusColor = Colors.grey;
+        textColor = Colors.grey;
+        statusText = translate("Not deployed");
+      }
+
+      return Card(
+        elevation: 0,
+        color: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    statusIcon,
+                    color: statusColor,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    statusText,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: textColor,
+                    ),
+                  ),
+                  if (model.checking.value)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
+                      child: SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+
+              // Display content based on current status
+              if (model.checking.value) ...[
+                // Checking state
+                Text(
+                  translate("Checking deployment status..."),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blue[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ] else if (model.error.value.isNotEmpty) ...[
+                // Error state
+                Text(
+                  model.error.value,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ] else if (model.isDeployed.value) ...[
+                // Deployed state, showing team info first
+                if (model.group.value.isNotEmpty)
+                  Text(
+                    "${translate("Group")}: ${model.group.value}",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                if (model.user.value.isNotEmpty)
+                  Text(
+                    "${translate("Account")}: ${model.user.value}",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+              ] else ...[
+                // Not deployed state
+                InkWell(
+                  onTap: () {
+                    gFFI.deployModel.showDeployPage.value = true;
+                  },
+                  child: Text(
+                    translate("Deploy now"),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: MyTheme.accent,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget buildAccount() {
+    return Obx(() {
+      return Card(
+        elevation: 0,
+        color: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+          child: Row(
+            children: [
+              if (!gFFI.userModel.isLogin)
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.grey.withOpacity(0.4),
+                  child: const Icon(
+                    Icons.person_outline,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (gFFI.userModel.isLogin) ...[
+                      Text(
+                        gFFI.userModel.userName.value,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (gFFI.userModel.teamName.value.isNotEmpty)
+                        Text(
+                          "${translate("Team")}:${gFFI.userModel.teamName.value}",
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      if (gFFI.deployModel.group.isNotEmpty && bind.isFull())
+                        Text(
+                          "${translate("Device Group")}:${gFFI.deployModel.group.value}",
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                    ] else
+                      Text(
+                        translate("Not logged in"),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    if (!gFFI.userModel.isLogin)
+                      InkWell(
+                        onTap: () async {
+                          await loginDialog();
+                          setState(() {});
+                        },
+                        child: Text(
+                          translate("Login"),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: MyTheme.accent,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 
   @override

@@ -315,20 +315,22 @@ class LoginWidgetOP extends StatelessWidget {
 }
 
 class LoginWidgetUserPass extends StatelessWidget {
-  final TextEditingController username;
+  final TextEditingController email;
   final TextEditingController pass;
-  final String? usernameMsg;
+  final String? emailMsg;
   final String? passMsg;
   final bool isInProgress;
   final RxString curOP;
   final Function() onLogin;
   final FocusNode? userFocusNode;
+  final String? loginButtonText;
   const LoginWidgetUserPass({
     Key? key,
     this.userFocusNode,
-    required this.username,
+    this.loginButtonText,
+    required this.email,
     required this.pass,
-    required this.usernameMsg,
+    required this.emailMsg,
     required this.passMsg,
     required this.isInProgress,
     required this.curOP,
@@ -344,11 +346,11 @@ class LoginWidgetUserPass extends StatelessWidget {
           children: [
             const SizedBox(height: 8.0),
             DialogTextField(
-                title: translate(DialogTextField.kUsernameTitle),
-                controller: username,
+                title: translate(DialogTextField.kEmailTitle),
+                controller: email,
                 focusNode: userFocusNode,
-                prefixIcon: DialogTextField.kUsernameIcon,
-                errorText: usernameMsg),
+                prefixIcon: DialogTextField.kEmailIccon,
+                errorText: emailMsg),
             PasswordWidget(
               controller: pass,
               autoFocus: false,
@@ -366,7 +368,7 @@ class LoginWidgetUserPass extends StatelessWidget {
                 width: 200,
                 child: Obx(() => ElevatedButton(
                       child: Text(
-                        translate('Login'),
+                        translate(loginButtonText ?? 'Login'),
                         style: TextStyle(fontSize: 16),
                       ),
                       onPressed:
@@ -385,18 +387,120 @@ class LoginWidgetUserPass extends StatelessWidget {
 
 const kAuthReqTypeOidc = 'oidc/';
 
-// call this directly
+Future<void> handleLoginResponse(
+  LoginResponse resp,
+  bool storeIfAccessToken,
+  void Function([dynamic])? close,
+  RxString passwordMsg,
+  TextEditingController email,
+  RxBool isInProgress,
+) async {
+  switch (resp.type) {
+    case HttpType.kAuthResTypeToken:
+      if (resp.access_token != null) {
+        if (storeIfAccessToken) {
+          await bind.mainSetLocalOption(
+              key: 'access_token', value: resp.access_token!);
+          await bind.mainSetLocalOption(
+              key: 'user_info', value: jsonEncode(resp.user ?? {}));
+        }
+        if (close != null) {
+          close(true);
+        }
+        return;
+      }
+      break;
+    case HttpType.kAuthResTypeEmailCheck:
+      bool? isEmailVerification;
+      if (resp.tfa_type == null ||
+          resp.tfa_type == HttpType.kAuthResTypeEmailCheck) {
+        isEmailVerification = true;
+      } else if (resp.tfa_type == HttpType.kAuthResTypeTfaCheck) {
+        isEmailVerification = false;
+      } else {
+        passwordMsg.value = "Failed, bad tfa type from server";
+      }
+      if (isEmailVerification != null) {
+        if (isMobile) {
+          if (close != null) close(null);
+          verificationCodeDialog(
+              email.text.trim().isNotEmpty ? email.text.trim() : null,
+              resp.secret,
+              isEmailVerification);
+        } else {
+          isInProgress.value = false;
+          final res = await verificationCodeDialog(
+              email.text.trim().isNotEmpty ? email.text.trim() : null,
+              resp.secret,
+              isEmailVerification);
+          if (res == true) {
+            if (close != null) close(false);
+            return;
+          }
+        }
+      }
+      break;
+    default:
+      passwordMsg.value = "Failed, bad response from server";
+      break;
+  }
+}
+
+Future<bool?> handleLoginWithEmailAndPassword({
+  required TextEditingController email,
+  required TextEditingController password,
+  required RxString passwordMsg,
+  required RxString emailMsg,
+  required RxBool isInProgress,
+  required RxString curOP,
+  required bool storeIfAccessToken,
+  required void Function([dynamic])? close,
+}) async {
+  // validate
+  if (email.text.isEmpty) {
+    emailMsg.value = translate('Email missed');
+    return false;
+  }
+  if (password.text.isEmpty) {
+    passwordMsg.value = translate('Password missed');
+    return false;
+  }
+  curOP.value = 'rustdesk';
+  isInProgress.value = true;
+  try {
+    final resp = await gFFI.userModel.login(LoginRequest(
+        email: email.text,
+        password: password.text,
+        id: await bind.mainGetMyId(),
+        uuid: await bind.mainGetUuid(),
+        autoLogin: true,
+        type: HttpType.kAuthReqTypeAccount));
+    await handleLoginResponse(
+        resp, storeIfAccessToken, close, passwordMsg, email, isInProgress);
+    return true;
+  } on RequestException catch (err) {
+    passwordMsg.value = translate(err.cause);
+    return false;
+  } catch (err) {
+    passwordMsg.value = "Unknown Error: $err";
+    return false;
+  } finally {
+    curOP.value = '';
+    isInProgress.value = false;
+  }
+}
+
 Future<bool?> loginDialog() async {
-  var username =
-      TextEditingController(text: UserModel.getLocalUserInfo()?['name'] ?? '');
+  var email =
+      TextEditingController(text: UserModel.getLocalUserInfo()?['email'] ?? '');
   var password = TextEditingController();
   final userFocusNode = FocusNode()..requestFocus();
   Timer(Duration(milliseconds: 100), () => userFocusNode..requestFocus());
 
-  String? usernameMsg;
-  String? passwordMsg;
-  var isInProgress = false;
-  final RxString curOP = ''.obs;
+  final emailMsg = RxString('');
+  final passwordMsg = RxString('');
+  final isInProgress = false.obs;
+  final curOP = ''.obs;
 
   final loginOptions = [].obs;
   Future.delayed(Duration.zero, () async {
@@ -404,100 +508,37 @@ Future<bool?> loginDialog() async {
   });
 
   final res = await gFFI.dialogManager.show<bool>((setState, close, context) {
-    username.addListener(() {
-      if (usernameMsg != null) {
-        setState(() => usernameMsg = null);
+    email.addListener(() {
+      if (emailMsg.value.isNotEmpty) {
+        emailMsg.value = '';
       }
     });
 
     password.addListener(() {
-      if (passwordMsg != null) {
-        setState(() => passwordMsg = null);
+      if (passwordMsg.value.isNotEmpty) {
+        passwordMsg.value = '';
       }
     });
 
     onDialogCancel() {
-      isInProgress = false;
+      isInProgress.value = false;
       close(false);
     }
 
-    handleLoginResponse(LoginResponse resp, bool storeIfAccessToken,
-        void Function([dynamic])? close) async {
-      switch (resp.type) {
-        case HttpType.kAuthResTypeToken:
-          if (resp.access_token != null) {
-            if (storeIfAccessToken) {
-              await bind.mainSetLocalOption(
-                  key: 'access_token', value: resp.access_token!);
-              await bind.mainSetLocalOption(
-                  key: 'user_info', value: jsonEncode(resp.user ?? {}));
-            }
-            if (close != null) {
-              close(true);
-            }
-            return;
-          }
-          break;
-        case HttpType.kAuthResTypeEmailCheck:
-          bool? isEmailVerification;
-          if (resp.tfa_type == null ||
-              resp.tfa_type == HttpType.kAuthResTypeEmailCheck) {
-            isEmailVerification = true;
-          } else if (resp.tfa_type == HttpType.kAuthResTypeTfaCheck) {
-            isEmailVerification = false;
-          } else {
-            passwordMsg = "Failed, bad tfa type from server";
-          }
-          if (isEmailVerification != null) {
-            if (isMobile) {
-              if (close != null) close(null);
-              verificationCodeDialog(
-                  resp.user, resp.secret, isEmailVerification);
-            } else {
-              setState(() => isInProgress = false);
-              final res = await verificationCodeDialog(
-                  resp.user, resp.secret, isEmailVerification);
-              if (res == true) {
-                if (close != null) close(false);
-                return;
-              }
-            }
-          }
-          break;
-        default:
-          passwordMsg = "Failed, bad response from server";
-          break;
-      }
-    }
-
     onLogin() async {
-      // validate
-      if (username.text.isEmpty) {
-        setState(() => usernameMsg = translate('Username missed'));
-        return;
+      final success = await handleLoginWithEmailAndPassword(
+        email: email,
+        password: password,
+        passwordMsg: passwordMsg,
+        emailMsg: emailMsg,
+        isInProgress: isInProgress,
+        curOP: curOP,
+        storeIfAccessToken: true,
+        close: close,
+      );
+      if (success == false) {
+        setState(() {});
       }
-      if (password.text.isEmpty) {
-        setState(() => passwordMsg = translate('Password missed'));
-        return;
-      }
-      curOP.value = 'rustdesk';
-      setState(() => isInProgress = true);
-      try {
-        final resp = await gFFI.userModel.login(LoginRequest(
-            username: username.text,
-            password: password.text,
-            id: await bind.mainGetMyId(),
-            uuid: await bind.mainGetUuid(),
-            autoLogin: true,
-            type: HttpType.kAuthReqTypeAccount));
-        await handleLoginResponse(resp, true, close);
-      } on RequestException catch (err) {
-        passwordMsg = translate(err.cause);
-      } catch (err) {
-        passwordMsg = "Unknown Error: $err";
-      }
-      curOP.value = '';
-      setState(() => isInProgress = false);
     }
 
     thirdAuthWidget() => Obx(() {
@@ -534,7 +575,8 @@ Future<bool?> loginDialog() async {
                     close(true);
 
                     if (resp != null) {
-                      handleLoginResponse(resp, false, null);
+                      handleLoginResponse(
+                          resp, false, null, passwordMsg, email, isInProgress);
                     }
                   },
                 ),
@@ -581,11 +623,11 @@ Future<bool?> loginDialog() async {
             height: 8.0,
           ),
           LoginWidgetUserPass(
-            username: username,
+            email: email,
             pass: password,
-            usernameMsg: usernameMsg,
-            passMsg: passwordMsg,
-            isInProgress: isInProgress,
+            emailMsg: emailMsg.value,
+            passMsg: passwordMsg.value,
+            isInProgress: isInProgress.value,
             curOP: curOP,
             onLogin: onLogin,
             userFocusNode: userFocusNode,
@@ -606,7 +648,7 @@ Future<bool?> loginDialog() async {
 }
 
 Future<bool?> verificationCodeDialog(
-    UserPayload? user, String? secret, bool isEmailVerification) async {
+    String? email, String? secret, bool isEmailVerification) async {
   var autoLogin = true;
   var isInProgress = false;
   String? errorText;
@@ -622,7 +664,7 @@ Future<bool?> verificationCodeDialog(
             verificationCode: code.text,
             tfaCode: isEmailVerification ? null : code.text,
             secret: secret,
-            username: user?.name,
+            email: email,
             id: await bind.mainGetMyId(),
             uuid: await bind.mainGetUuid(),
             autoLogin: autoLogin,
@@ -672,12 +714,12 @@ Future<bool?> verificationCodeDialog(
         content: Column(
           children: [
             Offstage(
-                offstage: !isEmailVerification || user?.email == null,
+                offstage: !isEmailVerification || email == null,
                 child: TextField(
                   decoration: InputDecoration(
                       labelText: "Email", prefixIcon: Icon(Icons.email)),
                   readOnly: true,
-                  controller: TextEditingController(text: user?.email),
+                  controller: TextEditingController(text: email),
                 ).workaroundFreezeLinuxMint()),
             isEmailVerification ? const SizedBox(height: 8) : const Offstage(),
             codeField,

@@ -1780,6 +1780,8 @@ class _AccountState extends State<_Account> {
           child: Column(
             children: [
               text('Username', gFFI.userModel.userName.value),
+              if (gFFI.userModel.teamName.isNotEmpty)
+                text('Team', gFFI.userModel.teamName.value),
               // text('Group', gFFI.groupModel.groupName.value),
             ],
           ),
