@@ -3419,6 +3419,9 @@ Future<bool> setServerConfig(
       gFFI.userModel.isLogin) {
     gFFI.userModel.logOut(apiServer: oldApiServer);
   }
+  if (!isWeb) {
+    gFFI.deployModel.checkDeploy();
+  }
   return true;
 }
 
