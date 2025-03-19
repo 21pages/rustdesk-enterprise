@@ -1194,7 +1194,7 @@ jobs:
             HBB=`pwd` rpmbuild ./res/rpm-flutter-suse.spec -bb
             pushd ~/rpmbuild/RPMS/${{ matrix.job.arch }}
             for name in rustdesk*??.rpm; do
-                mv "$name" /workspace/"${name%%.rpm}-suse.rpm"
+                mv "$name" /workspace/${{env.APP_NAME}}-${{env.VERSION}}-${{matrix.job.arch}}-suse.rpm
             done
 
       - name: Publish debian/rpm package

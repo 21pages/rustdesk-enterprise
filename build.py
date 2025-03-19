@@ -24,6 +24,7 @@ else:
     flutter_build_dir = 'build/linux/x64/release/bundle/'
 flutter_build_dir_2 = f'flutter/{flutter_build_dir}'
 skip_cargo = False
+flutter_deb_name = "debian.deb"
 
 
 def get_deb_arch() -> str:
@@ -366,7 +367,7 @@ def build_flutter_deb(version, features):
 
     system2('/bin/rm -rf tmpdeb/')
     system2('/bin/rm -rf ../res/DEBIAN/control')
-    os.rename('rustdesk.deb', '../debian.deb')
+    os.rename('rustdesk.deb', f'../{flutter_deb_name}')
     os.chdir("..")
 
 def set_deb_client_type(client_type, version):
@@ -375,7 +376,7 @@ def set_deb_client_type(client_type, version):
     app_name = app_name0.lower()
     os.system(
         f"""
-    rm -rf tmpdeb; dpkg-deb -R debian.deb tmpdeb
+    rm -rf tmpdeb; dpkg-deb -R {flutter_deb_name} tmpdeb
     mkdir -p tmpdeb
     cd tmpdeb
     mv etc/rustdesk etc/{app_name}
@@ -394,7 +395,34 @@ def set_deb_client_type(client_type, version):
     """
     )
 
+def compile_arch_common(client_type):
+    app_name0 = f"rustdesk-{client_type}" # todo: flatpak
+    app_name = app_name0.lower()
+    arch2 = "arm64" if os.environ.get("DEB_ARCH") == "arm64" else "x64"
+    os.system(
+        f"""
+    rm -rf tmpdeb
+    dpkg-deb -R {flutter_deb_name} tmpdeb
+    # handle flutter build
+    rm -rf flutter/build
+    mkdir -p flutter/build/linux/{arch2}/release/bundle
+    cp -rf tmpdeb/usr/share/rustdesk/* flutter/build/linux/{arch2}/release/bundle/
+    mv flutter/build/linux/{arch2}/release/bundle/rustdesk flutter/build/linux/{arch2}/release/bundle/{app_name}
 
+    # handle res
+    sed -i 's/..\\/res\\/scalable.svg/..\\/res\\/128x128@2x.png/g' flatpak/rustdesk.json
+    sed -i 's/*.desktop",/*.desktop","install -Dm644 128x128@2x.png \\/app\\/share\\/icons\\/hicolor\\/256x256\\/apps\\/com.rustdesk.RustDesk.png"/g' flatpak/rustdesk.json
+    for p in res appimage flatpak; do
+        find $p -type f -exec sed -i '/rustdesk.svg/d' {{}} \\;
+        find $p -type f -exec sed -i '/scalable.svg/d' {{}} \\;
+        find $p -type f -exec sed -i 's/RustDesk/{app_name0}/g' {{}} \\;
+        find $p -type f -exec sed -i 's/rustdesk/{app_name}/g' {{}} \\;
+    done
+    mv res/rustdesk.service res/{app_name}.service
+    mv res/rustdesk.desktop res/{app_name}.desktop
+    mv res/rustdesk-link.desktop res/{app_name}-link.desktop
+    """
+    )
 
 def build_flutter_dmg(version, features):
     if not skip_cargo:
@@ -488,50 +516,15 @@ def main():
         if flutter:
             build_flutter_windows(version, features, args.skip_portable_pack)
             return
-    elif os.path.isfile('/usr/bin/pacman'):
-        # pacman -S -needed base-devel
-        system2("sed -i 's/pkgver=.*/pkgver=%s/g' res/PKGBUILD" % version)
-        if flutter:
-            build_flutter_arch_manjaro(version, features)
-        else:
-            system2('cargo build --release --features ' + features)
-            system2('git checkout src/ui/common.tis')
-            system2('strip target/release/rustdesk')
-            system2('ln -s res/pacman_install && ln -s res/PKGBUILD')
-            system2('HBB=`pwd` makepkg -f')
-        system2('mv rustdesk-%s-0-x86_64.pkg.tar.zst rustdesk-%s-manjaro-arch.pkg.tar.zst' % (
-            version, version))
-        # pacman -U ./rustdesk.pkg.tar.zst
-    elif os.path.isfile('/usr/bin/yum'):
-        system2('cargo build --release --features ' + features)
-        system2('strip target/release/rustdesk')
-        system2(
-            "sed -i 's/Version:    .*/Version:    %s/g' res/rpm.spec" % version)
-        system2('HBB=`pwd` rpmbuild -ba res/rpm.spec')
-        system2(
-            'mv $HOME/rpmbuild/RPMS/x86_64/rustdesk-%s-0.x86_64.rpm ./rustdesk-%s-fedora28-centos8.rpm' % (
-                version, version))
-        # yum localinstall rustdesk.rpm
-    elif os.path.isfile('/usr/bin/zypper'):
-        system2('cargo build --release --features ' + features)
-        system2('strip target/release/rustdesk')
-        system2(
-            "sed -i 's/Version:    .*/Version:    %s/g' res/rpm-suse.spec" % version)
-        system2('HBB=`pwd` rpmbuild -ba res/rpm-suse.spec')
-        system2(
-            'mv $HOME/rpmbuild/RPMS/x86_64/rustdesk-%s-0.x86_64.rpm ./rustdesk-%s-suse.rpm' % (
-                version, version))
-        # yum localinstall rustdesk.rpm
     else:
         if flutter:
             if osx:
                 build_flutter_dmg(version, features)
                 pass
             else:
-                # system2(
-                #     'mv target/release/bundle/deb/rustdesk*.deb ./flutter/rustdesk.deb')
                 build_flutter_deb(version, features)
                 set_deb_client_type(client_type, version)
+                compile_arch_common(client_type)
 
 
 def md5_file(fn):
