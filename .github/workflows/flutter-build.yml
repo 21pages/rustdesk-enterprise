@@ -525,8 +525,8 @@ jobs:
           ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
           mv ./flutter/build/macos/Build/Products/Release/RustDesk.app ./${{ env.APP_NAME }}.app
           cd ./${{ env.APP_NAME }}.app/Contents
-          gsed -i "s/rustdesk/${{ env.BIN_NAME }}/g" Info.plist
-          gsed -i "s/RustDesk/${{ env.APP_NAME }}/g" Info.plist
+          sed -i '' "s/rustdesk/${{ env.BIN_NAME }}/g" Info.plist
+          sed -i '' "s/RustDesk/${{ env.APP_NAME }}/g" Info.plist
           mv MacOS/RustDesk MacOS/${{ env.APP_NAME }}
           cd ../..
 
