@@ -26,8 +26,8 @@ fn main() {
             Ok(_) => {}
         }
     }
-    #[cfg(windows)]
-    modify_app_prefix();
+    // #[cfg(windows)]
+    // modify_app_prefix();
 }
 
 #[cfg(windows)]
