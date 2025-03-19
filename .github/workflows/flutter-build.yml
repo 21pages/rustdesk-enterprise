@@ -1257,6 +1257,9 @@ jobs:
     needs: [build-rustdesk-linux]
     runs-on: ubuntu-20.04
     if: ${{ inputs.upload-artifact }}
+    env:
+      APP_NAME: "RustDesk-${{ inputs.client-type-capitalized }}"
+      RELEASE_NAME: "rustdesk-${{ inputs.client-type }}"
     strategy:
       fail-fast: false
       matrix:
@@ -1277,16 +1280,17 @@ jobs:
       - name: Download Binary
         uses: actions/download-artifact@master
         with:
-          name: ${{ env.APP_NAME }}-${{ env.VERSION }}-${{ matrix.job.arch }}.deb
+          name: ${{ env.RELEASE_NAME }}-${{ env.VERSION }}-${{ matrix.job.arch }}.deb
           path: .
 
       - name: Rename Binary
         run: |
-          mv ${{ env.APP_NAME }}-${{ env.VERSION }}-${{ matrix.job.arch }}.deb appimage/rustdesk.deb
+          mv ${{ env.RELEASE_NAME }}-${{ env.VERSION }}-${{ matrix.job.arch }}.deb appimage/${{ env.RELEASE_NAME }}.deb
 
       - name: Build appimage package
         shell: bash
         run: |
+          ./res/custom_res.sh ${{ env.APP_NAME }} ${{ env.RELEASE_NAME }}
           # install libarchive-tools for bsdtar command used in AppImageBuilder.yml
           sudo apt-get update -y
           sudo apt-get install -y libarchive-tools
@@ -1307,7 +1311,7 @@ jobs:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
-            ./appimage/${{ env.APP_NAME }}-${{ env.VERSION }}-*.AppImage
+            ./appimage/${{ env.RELEASE_NAME }}-${{ env.VERSION }}-*.AppImage
 
   build-flatpak:
     name: Build flatpak ${{ matrix.job.target }}${{ matrix.job.suffix }}
@@ -1316,6 +1320,9 @@ jobs:
       # - build-rustdesk-linux-sciter
     runs-on: ${{ matrix.job.on }}
     if: ${{ inputs.upload-artifact }}
+    env:
+      APP_NAME: "RustDesk_${{ inputs.client-type-capitalized }}"
+      RELEASE_NAME: "rustdesk-${{ inputs.client-type }}"
     strategy:
       fail-fast: false
       matrix:
@@ -1349,12 +1356,12 @@ jobs:
       - name: Download Binary
         uses: actions/download-artifact@master
         with:
-          name: ${{ env.APP_NAME }}-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.deb
+          name: ${{ env.RELEASE_NAME }}-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.deb
           path: .
 
       - name: Rename Binary
         run: |
-          mv ${{ env.APP_NAME }}-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.deb flatpak/rustdesk.deb
+          mv ${{ env.RELEASE_NAME }}-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.deb flatpak/${{ env.RELEASE_NAME }}.deb
 
       - uses: rustdesk-org/run-on-arch-action@amd64-support
         name: Build rustdesk flatpak package for ${{ matrix.job.arch }}
@@ -1372,6 +1379,7 @@ jobs:
             apt-get update -y
             apt-get install -y git flatpak flatpak-builder
           run: |
+            ./res/custom_res.sh ${{ env.APP_NAME }} ${{ env.RELEASE_NAME }}
             # disable git safe.directory
             git config --global --add safe.directory "*"
             pushd /workspace
@@ -1381,7 +1389,7 @@ jobs:
             pushd flatpak
             git clone https://github.com/flathub/shared-modules.git --depth=1
             flatpak-builder --user --install-deps-from=flathub -y --force-clean --repo=repo ./build ./rustdesk.json
-            flatpak build-bundle ./repo ${{ env.APP_NAME }}-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak com.rustdesk.RustDesk
+            flatpak build-bundle ./repo ${{ env.RELEASE_NAME }}-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak com.rustdesk.RustDesk
 
       - name: Publish flatpak package
         uses: softprops/action-gh-release@v1
@@ -1389,6 +1397,6 @@ jobs:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
-            flatpak/${{ env.APP_NAME }}-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak
+            flatpak/${{ env.RELEASE_NAME }}-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak
 
 
