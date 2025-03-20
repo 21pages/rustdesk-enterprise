@@ -24,3 +24,4 @@ done
 mv res/rustdesk.service res/${app_name}.service
 mv res/rustdesk.desktop res/${app_name}.desktop
 mv res/rustdesk-link.desktop res/${app_name}-link.desktop
+mv flatpak/com.rustdesk.RustDesk.metainfo.xml flatpak/com.${app_name}.${app_name0}.metainfo.xml
