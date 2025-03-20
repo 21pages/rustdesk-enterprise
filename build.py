@@ -410,7 +410,7 @@ def compile_arch_common(client_type):
     mv flutter/build/linux/{arch2}/release/bundle/rustdesk flutter/build/linux/{arch2}/release/bundle/{app_name}
 
     # handle res
-    ./github/scripts/custom_res.sh {app_name0} {app_name}
+    ./.github/scripts/custom_res.sh {app_name0} {app_name}
     """
     )
 
