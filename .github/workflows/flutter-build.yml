@@ -225,7 +225,6 @@ jobs:
 
       - name: Build msi
         if: env.UPLOAD_ARTIFACT == 'true'
-        continue-on-error: true
         run: |
           pushd ./res/msi
           python preprocess.py --arp -d ../../rustdesk --app-name ${{ env.APP_NAME }}
@@ -1389,7 +1388,7 @@ jobs:
             pushd flatpak
             git clone https://github.com/flathub/shared-modules.git --depth=1
             flatpak-builder --user --install-deps-from=flathub -y --force-clean --repo=repo ./build ./rustdesk.json
-            flatpak build-bundle ./repo ${{ env.RELEASE_NAME }}-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak com.rustdesk.RustDesk
+            flatpak build-bundle ./repo ${{ env.RELEASE_NAME }}-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak com.rustdesk.${{ env.APP_NAME }}
 
       - name: Publish flatpak package
         uses: softprops/action-gh-release@v1
