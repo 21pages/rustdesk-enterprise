@@ -117,7 +117,7 @@ class PeerPayload {
 }
 
 class LoginRequest {
-  String? username;
+  String? email;
   String? password;
   String? id;
   String? uuid;
@@ -128,7 +128,7 @@ class LoginRequest {
   String? secret;
 
   LoginRequest(
-      {this.username,
+      {this.email,
       this.password,
       this.id,
       this.uuid,
@@ -140,7 +140,7 @@ class LoginRequest {
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
-    if (username != null) data['username'] = username;
+    if (email != null) data['email'] = email;
     if (password != null) data['password'] = password;
     if (id != null) data['id'] = id;
     if (uuid != null) data['uuid'] = uuid;

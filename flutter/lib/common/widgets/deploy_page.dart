@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:flutter_hbb/common.dart';
+import 'dart:async';
 
 class DeployPage extends StatefulWidget {
   const DeployPage({
@@ -21,6 +22,12 @@ class _DeployPageState extends State<DeployPage> {
     super.initState();
   }
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   Future<void> _deployWithCode(String code) async {
     if (code.length != 12) {
       _errorTextEdit.value = translate('Deploy code must be 12 characters');
@@ -38,6 +45,10 @@ class _DeployPageState extends State<DeployPage> {
 
   @override
   Widget build(BuildContext context) {
+    return _buildHost(context);
+  }
+
+  Widget _buildHost(BuildContext context) {
     final model = gFFI.deployModel;
     return Obx(() {
       final bool isLoading = model.checking.value || model.deploying.value;
@@ -145,11 +156,5 @@ class _DeployPageState extends State<DeployPage> {
         ),
       );
     });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 }
