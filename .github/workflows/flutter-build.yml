@@ -1290,7 +1290,7 @@ jobs:
       - name: Build appimage package
         shell: bash
         run: |
-          ./github/scripts/custom_res.sh ${{ env.APP_NAME }} ${{ env.RELEASE_NAME }}
+          ./.github/scripts/custom_res.sh ${{ env.APP_NAME }} ${{ env.RELEASE_NAME }}
           # install libarchive-tools for bsdtar command used in AppImageBuilder.yml
           sudo apt-get update -y
           sudo apt-get install -y libarchive-tools
@@ -1379,7 +1379,7 @@ jobs:
             apt-get update -y
             apt-get install -y git flatpak flatpak-builder
           run: |
-            ./github/scripts/custom_res.sh ${{ env.APP_NAME }} ${{ env.RELEASE_NAME }}
+            ./.github/scripts/custom_res.sh ${{ env.APP_NAME }} ${{ env.RELEASE_NAME }}
             # disable git safe.directory
             git config --global --add safe.directory "*"
             pushd /workspace
