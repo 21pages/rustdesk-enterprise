@@ -23,6 +23,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:window_size/window_size.dart' as window_size;
+import 'package:flutter_hbb/common/widgets/login.dart';
 
 import '../widgets/button.dart';
 
@@ -95,6 +96,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     final isIncomingOnly = bind.isIncomingOnly();
     final isOutgoingOnly = bind.isOutgoingOnly();
     final children = <Widget>[
+      if (bind.isClient() || bind.isFull()) buildAccount(),
       if (!isOutgoingOnly) buildPresetPasswordWarning(),
       if (bind.isCustomClient())
         Align(
@@ -105,7 +107,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         alignment: Alignment.center,
         child: loadLogo(),
       ),
-      buildTip(context),
       if (!isOutgoingOnly) buildIDBoard(context),
       if (!isOutgoingOnly) buildPasswordBoard(context),
       FutureBuilder<Widget>(
@@ -433,12 +434,6 @@ class _DesktopHomePageState extends State<DesktopHomePage>
               overflow: TextOverflow.clip,
               style: Theme.of(context).textTheme.bodySmall,
             ),
-          if (isOutgoingOnly)
-            Text(
-              translate("outgoing_only_desk_tip"),
-              overflow: TextOverflow.clip,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
         ],
       ),
     );
@@ -693,6 +688,76 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           ),
       ],
     );
+  }
+
+  Widget buildAccount() {
+    return Obx(() {
+      return Card(
+        elevation: 0,
+        color: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: gFFI.userModel.isLogin
+                    ? MyTheme.accent
+                    : Colors.grey.withOpacity(0.4),
+                child: gFFI.userModel.isLogin
+                    ? Text(
+                        gFFI.userModel.userName.value.isNotEmpty
+                            ? gFFI.userModel.userName.value[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.person_outline,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (gFFI.userModel.isLogin)
+                      Text(
+                        gFFI.userModel.userName.value,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    if (!gFFI.userModel.isLogin)
+                      InkWell(
+                        onTap: () async {
+                          await loginDialog();
+                          setState(() {});
+                        },
+                        child: Text(
+                          translate("Login"),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: MyTheme.accent,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 
   @override

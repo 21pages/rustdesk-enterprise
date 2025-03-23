@@ -15,6 +15,7 @@ import 'platform_model.dart';
 bool refreshingUser = false;
 
 class UserModel {
+  final RxString team = ''.obs;
   final RxString userName = ''.obs;
   final RxBool isAdmin = false.obs;
   final RxString networkError = ''.obs;
