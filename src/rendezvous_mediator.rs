@@ -564,10 +564,23 @@ impl RendezvousMediator {
             id,
             uuid: uuid.into(),
             pk: pk.into(),
+            type_: Self::get_register_type().into(),
             ..Default::default()
         });
         socket.send(&msg_out).await?;
         Ok(())
+    }
+
+    fn get_register_type() -> register_pk::Type {
+        if hbb_common::is_host() {
+            register_pk::Type::HOST
+        } else if hbb_common::is_sos() {
+            register_pk::Type::SOS
+        } else if hbb_common::is_full() {
+            register_pk::Type::FULL
+        } else {
+            register_pk::Type::UNKNOWN
+        }
     }
 
     async fn handle_uuid_mismatch(&mut self, socket: Sink<'_>) -> ResultType<()> {

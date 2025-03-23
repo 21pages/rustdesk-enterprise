@@ -15,8 +15,9 @@ import 'platform_model.dart';
 bool refreshingUser = false;
 
 class UserModel {
-  final RxString team = ''.obs;
+  final RxString teamName = ''.obs;
   final RxString userName = ''.obs;
+  final RxString email = ''.obs;
   final RxBool isAdmin = false.obs;
   final RxString networkError = ''.obs;
   bool get isLogin => userName.isNotEmpty;
@@ -115,6 +116,8 @@ class UserModel {
 
   _parseAndUpdateUser(UserPayload user) {
     userName.value = user.name;
+    teamName.value = user.teamName;
+    email.value = user.email;
     isAdmin.value = user.isAdmin;
     bind.mainSetLocalOption(key: 'user_info', value: jsonEncode(user));
   }

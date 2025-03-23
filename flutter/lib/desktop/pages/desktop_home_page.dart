@@ -726,14 +726,29 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (gFFI.userModel.isLogin)
+                    if (gFFI.userModel.isLogin) ...[
                       Text(
                         gFFI.userModel.userName.value,
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
-                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (gFFI.userModel.teamName.value.isNotEmpty)
+                        Text(
+                          gFFI.userModel.teamName.value,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                    ] else
+                      Text(
+                        translate("Not logged in"),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                        ),
                       ),
                     if (!gFFI.userModel.isLogin)
                       InkWell(

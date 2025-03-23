@@ -26,6 +26,7 @@ enum UserStatus { kDisabled, kNormal, kUnverified }
 class UserPayload {
   String name = '';
   String email = '';
+  String teamName = '';
   String note = '';
   UserStatus status;
   bool isAdmin = false;
@@ -33,6 +34,7 @@ class UserPayload {
   UserPayload.fromJson(Map<String, dynamic> json)
       : name = json['name'] ?? '',
         email = json['email'] ?? '',
+        teamName = json['team_name'] ?? '',
         note = json['note'] ?? '',
         status = json['status'] == 0
             ? UserStatus.kDisabled
