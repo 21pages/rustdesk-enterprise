@@ -97,6 +97,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     final isOutgoingOnly = bind.isOutgoingOnly();
     final children = <Widget>[
       if (bind.isClient() || bind.isFull()) buildAccount(),
+      if (bind.isHost()) buildDeployState(),
       if (!isOutgoingOnly) buildPresetPasswordWarning(),
       if (bind.isCustomClient())
         Align(
@@ -688,6 +689,123 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           ),
       ],
     );
+  }
+
+  Widget buildDeployState() {
+    final model = gFFI.deployModel;
+    return Obx(() {
+      return Card(
+        elevation: 0,
+        color: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    model.isDeployed.value
+                        ? Icons.check_circle_outline
+                        : Icons.info_outline,
+                    color: model.isDeployed.value ? Colors.green : Colors.grey,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    translate("Deployment Status"),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (model.checking.value)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
+                      child: SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              if (model.isDeployed.value) ...[
+                if (model.team.value.isNotEmpty)
+                  Text(
+                    "${translate("Team")}: ${model.team.value}",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                if (model.group.value.isNotEmpty)
+                  Text(
+                    "${translate("Group")}: ${model.group.value}",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                if (model.user.value.isNotEmpty)
+                  Text(
+                    "${translate("Deployed by")}: ${model.user.value}",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+              ] else if (model.error.value.isNotEmpty) ...[
+                Text(
+                  model.error.value,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ] else ...[
+                Text(
+                  translate("Not deployed"),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                InkWell(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text(translate("Deployment")),
+                        content: SizedBox(
+                          width: 400,
+                          height: 300,
+                          child: DeployPage(),
+                        ),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    translate("Deploy now"),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: MyTheme.accent,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    });
   }
 
   Widget buildAccount() {

@@ -12,6 +12,7 @@ class DeployModel {
   final RxString error = ''.obs;
   final RxString team = ''.obs;
   final RxString group = ''.obs;
+  final RxString user = ''.obs;
 
   Future<void> checkDeploy() async {
     try {
@@ -20,7 +21,7 @@ class DeployModel {
       isDeployed.value = false;
       team.value = '';
       group.value = '';
-      final api = "${await bind.mainGetApiServer()}/api/deploy-code/deployed";
+      final api = "${await bind.mainGetApiServer()}/api/deploy/state";
       var headers = getHttpHeaders();
       headers['Content-Type'] = "application/json";
       final body = jsonEncode({'id': await bind.mainGetMyId()});
@@ -39,6 +40,9 @@ class DeployModel {
       if (json['group'] != null) {
         group.value = json['group'];
       }
+      if (json['user'] != null) {
+        user.value = json['user'];
+      }
       isDeployed.value = team.isNotEmpty;
     } catch (e) {
       error.value = e.toString();
@@ -47,7 +51,7 @@ class DeployModel {
     }
   }
 
-  Future<void> deploy(String code) async {
+  Future<void> deployWithCode(String code) async {
     try {
       deploying.value = true;
       error.value = '';
