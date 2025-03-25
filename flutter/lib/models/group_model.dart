@@ -37,6 +37,7 @@ class GroupModel {
   }
 
   Future<void> pull({force = true, quiet = false}) async {
+    if (bind.isDisableAccount()) return;
     if (bind.isDisableGroupPanel()) return;
     if (!gFFI.userModel.isLogin || groupLoading.value) return;
     if (gFFI.userModel.networkError.isNotEmpty) return;

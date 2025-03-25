@@ -121,6 +121,7 @@ class AbModel {
 
   Future<void> _pullAb(
       {required ForcePullAb? force, required bool quiet}) async {
+    if (bind.isDisableAccount()) return;
     if (bind.isDisableAb()) return;
     if (!gFFI.userModel.isLogin) return;
     if (gFFI.userModel.networkError.isNotEmpty) return;
