@@ -46,6 +46,7 @@ fn initialize(app_dir: &str, custom_client_config: &str) {
     }
     #[cfg(target_os = "android")]
     {
+        crate::hbbs_http::sync::load_strategy(None);
         // flexi_logger can't work when android_logger initialized.
         #[cfg(debug_assertions)]
         android_logger::init_once(
@@ -622,7 +623,10 @@ pub fn session_open_terminal(session_id: SessionID, terminal_id: i32, rows: u32,
     if let Some(session) = sessions::get_session_by_session_id(&session_id) {
         session.open_terminal(terminal_id, rows, cols);
     } else {
-        log::error!("[flutter_ffi] Session not found for session_id: {}", session_id);
+        log::error!(
+            "[flutter_ffi] Session not found for session_id: {}",
+            session_id
+        );
     }
 }
 
@@ -1385,20 +1389,42 @@ pub fn main_handle_relay_id(id: String) -> String {
 }
 
 pub fn main_is_option_fixed(key: String) -> SyncReturn<bool> {
-    SyncReturn(
-        config::OVERWRITE_DISPLAY_SETTINGS
+    let res = config::OVERWRITE_DISPLAY_SETTINGS
+        .read()
+        .unwrap()
+        .contains_key(&key)
+        || config::OVERWRITE_LOCAL_SETTINGS
             .read()
             .unwrap()
             .contains_key(&key)
-            || config::OVERWRITE_LOCAL_SETTINGS
-                .read()
-                .unwrap()
-                .contains_key(&key)
-            || config::OVERWRITE_SETTINGS
-                .read()
-                .unwrap()
-                .contains_key(&key),
-    )
+        || config::OVERWRITE_SETTINGS
+            .read()
+            .unwrap()
+            .contains_key(&key)
+        || config::STRATEGY_OVERRIDE_SETTINGS
+            .read()
+            .unwrap()
+            .contains_key(&key);
+    if key == "enable-keyboard" {
+        log::info!("is_option_fixed: {} {}", key, res);
+        log::info!(
+            "OVERWRITE_DISPLAY_SETTINGS: {:?}",
+            config::OVERWRITE_DISPLAY_SETTINGS.read().unwrap()
+        );
+        log::info!(
+            "OVERWRITE_LOCAL_SETTINGS: {:?}",
+            config::OVERWRITE_LOCAL_SETTINGS.read().unwrap()
+        );
+        log::info!(
+            "OVERWRITE_SETTINGS: {:?}",
+            config::OVERWRITE_SETTINGS.read().unwrap()
+        );
+        log::info!(
+            "STRATEGY_OVERRIDE_SETTINGS: {:?}",
+            config::STRATEGY_OVERRIDE_SETTINGS.read().unwrap()
+        );
+    }
+    SyncReturn(res)
 }
 
 pub fn main_get_main_display() -> SyncReturn<String> {
@@ -2160,16 +2186,24 @@ pub fn is_disable_installation() -> SyncReturn<bool> {
 }
 
 pub fn is_preset_password() -> bool {
-    config::HARD_SETTINGS
+    let mut preset_password = config::HARD_SETTINGS
         .read()
         .unwrap()
         .get("password")
-        .map_or(false, |p| {
-            #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            return p == &crate::ipc::get_permanent_password();
-            #[cfg(any(target_os = "android", target_os = "ios"))]
-            return p == &config::Config::get_permanent_password();
-        })
+        .map(|s| s.to_owned());
+    if preset_password.is_none() {
+        preset_password = config::STRATEGY_HARD_SETTINGS
+            .read()
+            .unwrap()
+            .get("password")
+            .map(|s| s.to_owned());
+    }
+    preset_password.map_or(false, |p| {
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        return p == crate::ipc::get_permanent_password();
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        return p == config::Config::get_permanent_password();
+    })
 }
 
 // Don't call this function for desktop version.

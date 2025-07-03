@@ -1710,7 +1710,16 @@ pub fn get_hwid() -> Bytes {
 
 #[inline]
 pub fn get_builtin_option(key: &str) -> String {
-    config::BUILTIN_SETTINGS
+    let v = config::BUILTIN_SETTINGS
+        .read()
+        .unwrap()
+        .get(key)
+        .cloned()
+        .unwrap_or_default();
+    if !v.is_empty() {
+        return v;
+    }
+    config::STRATEGY_OVERRIDE_SETTINGS
         .read()
         .unwrap()
         .get(key)
@@ -1903,7 +1912,7 @@ pub async fn test_ipv6() -> Option<tokio::task::JoinHandle<()>> {
                         // only use the first one, on mac, the first one is the stable
                         // one, the last one is the temporary one. The middle ones are deperecated.
                         *PUBLIC_IPV6_ADDR.lock().unwrap() =
-                            Some((SocketAddr::from((ip, 0)), Instant::now()));
+                            Some((SocketAddr::from((ip, 0)), Instant::now())));
                         log::debug!("Found public IPv6 address locally: {}", ip);
                         break;
                     }
