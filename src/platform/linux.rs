@@ -538,6 +538,7 @@ pub fn start_os_service() {
                 &mut last_restart,
                 &mut server,
             ) {
+                log::info!("should_start_server");
                 stop_subprocess();
                 force_stop_server();
                 start_server(None, &mut server);
@@ -560,6 +561,7 @@ pub fn start_os_service() {
                 &mut last_restart,
                 &mut user_server,
             ) {
+                log::info!("should_start_server");
                 stop_subprocess();
                 force_stop_server();
                 start_server(Some(&desktop), &mut user_server);
